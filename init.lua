@@ -63,7 +63,7 @@ local function genProgrammer(ct,meta)
     end
     res=res.."]"
     local pos=3.25
-    --Note:Due to the bigger fields of 0.4.10,I've had to shuffle the layout a bit.
+    --Note:Due to the bigger fields of 0.4.11,I've had to shuffle the layout a bit.
     for p,v in ipairs(pages) do
         res=res.."button["..pos..","..(wid-0.5)..";1.75,1;cmdpage"..p..";"..v.."]"
         pos=pos+1.50
