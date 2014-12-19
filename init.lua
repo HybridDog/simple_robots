@@ -59,7 +59,7 @@ local function genProgrammer(ct,meta)
         else
             res=res.."_ "
         end
-        res=res..meta:get_string("program_"..l.."_op").." "..meta:get_string("program_"..l.."_msg")
+        res=res..meta:get_string("program_"..l.."_op").." "..minetest.formspec_escape(meta:get_string("program_"..l.."_msg"))
     end
     res=res.."]"
     local pos=3.25
@@ -72,7 +72,7 @@ local function genProgrammer(ct,meta)
     --Doesn't happen anymore,but may as well leave a perfectly good check.
     local ln=meta:get_int("lineno")
     if (ln~=nil) and (ln~=0) then
-        res=res.."label[3.25,0;Line "..ln.."="..(meta:get_string("program_"..ln.."_op").." "..meta:get_string("program_"..ln.."_msg")).."]"
+        res=res.."label[3.25,0;Line "..ln.."="..meta:get_string("program_"..ln.."_op").." "..minetest.formspec_escape(meta:get_string("program_"..ln.."_msg")).."]"
         for p,v in ipairs(set) do
             --This deliberately acts against the auto-spacing to conserve space
             --for more commands.
