@@ -62,12 +62,10 @@ local function genProgrammer(ct,meta)
         res=res..meta:get_string("program_"..l.."_op").." "..meta:get_string("program_"..l.."_msg")
     end
     res=res.."]"
-    --Reset resets the robot,resume simply resumes it.
-    res=res.."button[3.25,"..(wid-1)..";1.75,1;reset;Reset(goto 1)]"
-    res=res.."button[4.75,"..(wid-1)..";1.25,1;resume;Resume]"
     local pos=3.25
+    --Note:Due to the bigger fields of 0.4.10,I've had to shuffle the layout a bit.
     for p,v in ipairs(pages) do
-        res=res.."button["..pos..","..(wid-1.7)..";1.75,1;cmdpage"..p..";"..v.."]"
+        res=res.."button["..pos..","..(wid-0.5)..";1.75,1;cmdpage"..p..";"..v.."]"
         pos=pos+1.50
     end
     --For some reason LN liked to equal 0.
@@ -78,14 +76,18 @@ local function genProgrammer(ct,meta)
         for p,v in ipairs(set) do
             --This deliberately acts against the auto-spacing to conserve space
             --for more commands.
-            res=res.."button[7.25,"..((p/1.25)+0.40)..";1,1;cmd"..p..";Set]"
-            res=res.."field[3.25,"..((p/1.25)+0.40)..";4,1;msg"..p..";"..v..";]"
+            res=res.."button[7.25,"..(p+0.2)..";1,1;cmd"..p..";Set]"
+            res=res.."field[3.25,"..(p+0.2)..";4,1;msg"..p..";"..v..";]"
         end
     end
     res=res.."label[8.25,-0.25;Player Inventory]"
-    res=res.."label[8.25,4;Robot Inventory]"
+    res=res.."label[8.25,4.2;Robot Inventory]"
     res=res.."list[current_player;main;8.25,0.25;8,4;]"
-    res=res.."list[context;main;8.25,4.5;8,2;]"
+    res=res.."list[context;main;8.25,4.7;8,2;]"
+
+    --Reset resets the robot,resume simply resumes it.
+    res=res.."button[8.25,"..(wid-1.75)..";1.75,1;reset;Reset(goto 1)]"
+    res=res.."button[9.75,"..(wid-1.75)..";1.25,1;resume;Resume]"
     return res
 end
 
@@ -215,13 +217,6 @@ local function vm_lookup(pos,label)
     vm_shutdown(pos)
     return false
 end
---Why not vector.add? Dimensions,that's why
-local function vm_vectoradd(pos1,dir)
-    --NOTE:VECTOR ADDITION CODE WHICH WILL BREAK IF THEY ADD DIMENSIONS. BUT DON'T WORRY,THIS IS HERE SO I CAN FIX IT
-    --(quote)If I have to copy this again,I'm making it a function.For safety's sake more than anything else.(unquote)
-    --Okay,I've done that.
-    return {x=pos1.x+dir.x,y=pos1.y+dir.y,z=pos1.z+dir.z}
-end
 --TP COMMAND FUNCTION
 --Basically a "movement command" function.(as in,forward,up,down)
 --This returns true if the TP was a success,false if it failed.
@@ -229,7 +224,7 @@ end
 --If it's false,return vm_lookup instead!!!
 --NOTE:No protection check is done for pos1,since that's where the robot is.
 local function vm_tp(pos1,dir,arg)
-    local pos2=vm_vectoradd(pos1,dir)
+    local pos2=vector.add(pos1,dir)
     local meta=minetest.get_meta(pos1)
     local ser=vm_serialize(pos1)
     if not vm_p_place(ser.owner,pos2) then return vm_lookup(pos1,arg) end
@@ -245,7 +240,7 @@ local function vm_tp(pos1,dir,arg)
 end
 local function vm_mine(pos1,dir,arg)
     local meta=minetest.get_meta(pos1)
-    local pos2=vm_vectoradd(pos1,dir)
+    local pos2=vector.add(pos1,dir)
     local node=minetest.get_node(pos2)
     if vm_is_air(node) then return vm_lookup(pos1,arg) end
     local fp=vm_fakeplayer(meta:get_string("robot_owner"),pos1,{sneak=false},meta:get_int("robot_slot"))
@@ -260,7 +255,7 @@ end
 --NOTE:This handles both the use of a tool and the punch itself.
 local function vm_punch(pos1,dir,arg)
     local meta=minetest.get_meta(pos1)
-    local pos2=vm_vectoradd(pos1,dir)
+    local pos2=vector.add(pos1,dir)
     local node=minetest.get_node(pos2)
     local fp=vm_fakeplayer(meta:get_string("robot_owner"),pos1,{sneak=false},meta:get_int("robot_slot"))
     local stk=meta:get_inventory():get_stack("main",meta:get_int("robot_slot"))
@@ -286,7 +281,7 @@ local function vm_punch(pos1,dir,arg)
 end
 local function vm_place(pos1,dir,arg)
     local meta=minetest.get_meta(pos1)
-    local pos2=vm_vectoradd(pos1,dir)
+    local pos2=vector.add(pos1,dir)
     if not vm_is_air(minetest.get_node(pos2)) then return vm_lookup(pos1,arg) end
     local owner=meta:get_string("robot_owner")
     local stk=meta:get_inventory():get_stack("main",meta:get_int("robot_slot"))
@@ -316,7 +311,7 @@ local function vm_run(pos)
     if pc==0 then vm_shutdown(pos) return false end
     local command=meta:get_string("program_"..pc.."_op")
     local arg=meta:get_string("program_"..pc.."_msg")
-    print("RAN "..command.." "..arg)--debug,the actual ingame debugger isn't up yet,if there'll ever be one at all
+    --print("RAN "..command.." "..arg)--debug,the actual ingame debugger isn't up yet,if there'll ever be one at all
     --NOTE ON ADDING COMMANDS
     --For a script command(NOP,GOTO,IF,similar) use "return vm_advance(pos)" or "return vm_lookup(meta,arg)"
     --For a animated command(TURN LEFT,FORWARD,TURN RIGHT,similar)
@@ -364,7 +359,7 @@ local function vm_run(pos)
         return vm_lookup(pos,arg)
     end
     if command=="DEPOSIT ALL BUT SELECTED ELSE GOTO" then
-        local pos2=vm_vectoradd(pos,minetest.facedir_to_dir(minetest.get_node(pos).param2))
+        local pos2=vector.add(pos,minetest.facedir_to_dir(minetest.get_node(pos).param2))
         --Permissions check.
         if not vm_p_mine(meta:get_string("robot_owner"),pos2) then return vm_lookup(pos1,arg) end
     
