@@ -240,9 +240,9 @@ local function vm_tp(pos1,dir,arg)
 end
 
 -- gets the dug sound of a node
-local ndsounds = {}
-local function get_nd_sound(name)
-	local sound = ndsounds[name]
+local dugsounds = {}
+local function get_node_dug_sound(name)
+	local sound = dugsounds[name]
 	if sound then
 		return sound
 	end
@@ -258,7 +258,7 @@ local function get_nd_sound(name)
 	if not sound then
 		return
 	end
-	ndsounds[name] = sound
+	dugsounds[name] = sound
 	return sound
 end
 
@@ -273,7 +273,7 @@ local function vm_mine(pos1,dir,arg)
     fp:remove()
     --The block not being air is considered "failure".
     if (not vm_is_air(minetest.get_node(pos2))) then return vm_lookup(pos1,arg) end
-    local sound = get_nd_sound(node.name)
+    local sound = get_node_dug_sound(node.name)
     if sound then
         minetest.sound_play(sound.name, {pos=pos2, gain=sound.gain})
     end
@@ -307,6 +307,30 @@ local function vm_punch(pos1,dir,arg)
     vm_advance(pos1)
     return false
 end
+
+-- gets the place sound of a node
+local placesounds = {}
+local function get_node_place_sound(name)
+	local sound = placesounds[name]
+	if sound then
+		return sound
+	end
+	sound = minetest.registered_nodes[name]
+	if not sound then
+		return
+	end
+	sound = sound.sounds
+	if not sound then
+		return
+	end
+	sound = sound.place
+	if not sound then
+		return
+	end
+	placesounds[name] = sound
+	return sound
+end
+
 local function vm_place(pos1,dir,arg)
     local meta=minetest.get_meta(pos1)
     local pos2=vector.add(pos1,dir)
@@ -316,10 +340,18 @@ local function vm_place(pos1,dir,arg)
     if stk:is_empty() then return vm_lookup(pos1,arg) end
     local fp=vm_fakeplayer(owner,pos1,{sneak=true},meta:get_int("robot_slot"))
     if not fp then return vm_lookup(pos1,arg) end
-    local res,tf=stk:get_definition().on_place(stk,fp,{type="node",under=pos1,above=pos2})
+    local stackdef = stk:get_definition()
+    local res,tf = stackdef.on_place(stk,fp,{type="node",under=pos1,above=pos2})
     fp:remove()
     meta:get_inventory():set_stack("main",meta:get_int("robot_slot"),res)
     if not tf then return vm_lookup(pos1,arg) end
+    local name = stackdef.name
+    if name then print(name)
+        local sound = get_node_place_sound(name)
+        if sound then
+            minetest.sound_play(sound.name, {pos=pos2, gain=sound.gain})
+        end
+    end
     vm_advance(pos1)
     return false
 end
