@@ -419,7 +419,9 @@ local function vm_reset(meta)
         meta:set_string("program_"..p.."_op", "NOP")
         meta:set_string("program_"..p.."_msg", "")
     end
+    --Runtime variables
     meta:set_int("robot_pc", 1)
+    meta:set_int("robot_slot", 1)
 end
 
 --ROBOT BLOCK
@@ -524,7 +526,7 @@ local function register_robot_type(tp,name)
             end
             if fields.reset or fields.resume then
                 local ser=vm_serialize(pos)
-                if fields.reset then ser.pc=1 end
+                if fields.reset then ser.pc=1 ser.slot=1 end
                 minetest.set_node(pos,{name=MOD_NAME..":robot_"..tp,param2=minetest.get_node(pos).param2})
                 --Timer is enabled by default (intentional!)
                 vm_deserialize(pos,ser)
