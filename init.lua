@@ -471,13 +471,15 @@ local function vm_run(pos)
     end
     if command=="DEPOSIT ALL BUT SELECTED ELSE GOTO" then
         local pos2=vector.add(pos,minetest.facedir_to_dir(minetest.get_node(pos).param2))
+        if vm_is_air(minetest.get_node(pos2)) then return vm_lookup(pos,arg,0) end
         --Permissions check.
-        if not vm_p_mine(meta:get_string("robot_owner"),pos2) then return vm_lookup(pos1,arg,0) end
-    
+        if not vm_p_mine(meta:get_string("robot_owner"),pos2) then return vm_lookup(pos,arg,0) end
+        
         --Okay,first:Is there a inventory in front of us with a sub-inventory called "main"?
         --If so,it's either another robot(wow,robot transport!),a chest,or a node breaker :)
         --None are any loss.
         local tgtmeta=minetest.get_meta(pos2)
+        if not tgtmeta then return vm_lookup(pos,arg,0) end
         local my_inv=meta:get_inventory()
         local inv=tgtmeta:get_inventory()
         local lookup=false
