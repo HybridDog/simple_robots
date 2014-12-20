@@ -1,4 +1,4 @@
-simple_robots:Simple programmable robots  
+simple_robots:Simple programmable robots
 #GUIDE  
 This is a mod that provides simple,programmable,robots.  
 They have a (hopefully) extremely simple programming language.  
@@ -137,7 +137,11 @@ DEPOSIT ALL BUT SELECTED ELSE GOTO:Moves as much as possible from the 16-slot "i
 >        If not everything was transferred(for any reason,  
 >        including there being no storage),  
 >        then goto a line number. (no argument=shutdown)
-
+#AUTHORS
+Expand this if you contribute!
+Authors are:
+>gamemanj on GitHub,for original mod.
+>HybridDog on GitHub,for adding place/dig sounds.
 #FAQ  
 Q.I can't program the robots!  
 A.Well,I can't help you with this.The guide above describes every command in detail,  
@@ -168,11 +172,6 @@ A.And you can do so(the license allows it).
 Q.The way you wrote the VM is weird.  
 A.I have to account for metadata that may not even be addressable by the same index after the operation.  
   Course the code's going to be weird.I pass positions sometimes,metadata on others,depends on if movement is involved.
-
-Q.Who wrote this?  
-A.Currently(EXPAND THIS IF YOU CONTRIBUTE...):  
-  gamemanj on GitHub,for original mod.
-  HybridDog on GitHub,for adding place/dig sounds.
 
 Q.The robots look horrible.  
 A.I know.
