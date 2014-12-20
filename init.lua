@@ -40,8 +40,8 @@ local CODELINES=64
 --the player has notification of "which robot broke everything"
 minetest.register_entity(MOD_NAME..":fakeplayer",
 {
-	initial_properties = {
-		hp_max = 1,
+    initial_properties = {
+        hp_max = 1,
         physical = false,
     },
     on_step=function(self, dtime)
@@ -261,6 +261,30 @@ local function vm_tp(pos1,dir,arg)
     minetest.get_node_timer(pos2):start(MOVETIME)--Manually control the timer,since get_node_timer won't work.
     return vm_advance(pos2,1)--This is basically so the VM doesn't run more commands.
 end
+
+-- gets the dug sound of a node
+local dugsounds = {}
+local function vm_get_node_dug_sound(name)
+    local sound = dugsounds[name]
+    if sound then
+        return sound
+    end
+    sound = minetest.registered_nodes[name]
+    if not sound then
+        return
+    end
+    sound = sound.sounds
+    if not sound then
+        return
+    end
+    sound = sound.dug
+    if not sound then
+        return
+    end
+    dugsounds[name] = sound
+    return sound
+end
+
 --This is a complex method because the "best" tool needs to be found.
 local function vm_mine(pos1,dir,arg)
     local meta=minetest.get_meta(pos1)
@@ -300,8 +324,13 @@ local function vm_mine(pos1,dir,arg)
     minetest.registered_nodes[node.name].on_dig(pos2, node, fp)
     fp:remove()
     --The block not being air is considered "failure".
-    --HOWEVER,since the dig was a success,it takes time.
+    --HOWEVER,since the dig itself was a success,it takes time.
     if (not vm_is_air(minetest.get_node(pos2))) then return vm_lookup(pos1,arg,dp_result.time+MINEPENALTYTIME) end
+
+    local sound = vm_get_node_dug_sound(node.name)
+    if sound then
+        minetest.sound_play(sound.name, {pos=pos2, gain=sound.gain})
+    end
     
     return vm_advance(pos1,dp_result.time+MINEPENALTYTIME)
 end
@@ -331,6 +360,30 @@ local function vm_punch(pos1,dir,arg)
     if not success then return vm_lookup(pos1,arg,0) end
     return vm_advance(pos1,PUNCHTIME)
 end
+
+-- gets the place sound of a node
+local placesounds = {}
+local function vm_get_node_place_sound(name)
+    local sound = placesounds[name]
+    if sound then
+        return sound
+    end
+    sound = minetest.registered_nodes[name]
+    if not sound then
+        return
+    end
+    sound = sound.sounds
+    if not sound then
+        return
+    end
+    sound = sound.place
+    if not sound then
+        return
+    end
+    placesounds[name] = sound
+    return sound
+end
+
 local function vm_place(pos1,dir,arg)
     local meta=minetest.get_meta(pos1)
     local pos2=vector.add(pos1,dir)
@@ -340,10 +393,18 @@ local function vm_place(pos1,dir,arg)
     if stk:is_empty() then return vm_lookup(pos1,arg,0) end
     local fp=vm_fakeplayer(owner,pos1,{sneak=true},meta:get_int("robot_slot"))
     if not fp then return vm_lookup(pos1,arg,0) end
-    local res,tf=stk:get_definition().on_place(stk,fp,{type="node",under=pos1,above=pos2})
+    local stackdef=stk:get_definition()
+    local res,tf=stackdef.on_place(stk,fp,{type="node",under=pos1,above=pos2})
     fp:remove()
     meta:get_inventory():set_stack("main",meta:get_int("robot_slot"),res)
     if not tf then return vm_lookup(pos1,arg,PLACETIME) end
+    local name = stackdef.name
+    if name then
+        local sound = vm_get_node_place_sound(name)
+        if sound then
+            minetest.sound_play(sound.name, {pos=pos2, gain=sound.gain})
+        end
+    end
     return vm_advance(pos1,PLACETIME)
 end
 local function vm_turn(pos,dir)
