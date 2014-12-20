@@ -1,11 +1,15 @@
 simple_robots:Simple programmable robots
-
+--GUIDE--
 This is a mod that provides simple,programmable,robots.
 They have a (hopefully) extremely simple programming language.
-You have 64 spaces of "command memory" on the robot,each space containing 1 command or label.
+You have 64 spaces of "command memory" on the robot,each space containing 1 command.
 Most importantly,robots cannot pass through anything except pure air.
 If the air actually is a node,the robot will not pass though.
---RECIPE--
+
+How to use Simple Robots:
+Step 1.Obtain a Simple Robot,either by crafting or creative mode.
+If you want to cheat one in,use "simple_robots:robot_simple_off".
+Here's the recipe:
 =:Steel Ingot
 /:Stick
 V:Mese Crystal
@@ -15,11 +19,46 @@ The recipe for a simple robot is:
 #V/
 ===
 
---COMMANDS--
-All commands have 1 field,but it may be unused.
+Step 2.Right click on a Simple Robot that is off to modify it's program,or turn it on.
 
+All commands have 1 field,but it may be unused.
 Commands are divided into pages. Different robots have different pages.
-At the moment,I haven't implemented tiers.Yet.
+At the moment,I haven't implemented tiers. Yet.
+
+Step 3a.To edit a program,first,select the line you wish to edit from the left panel.
+Step 3b.Then select the page of commands containing the command you want from the bottom.
+        For a full list,see --COMMANDS-- below.
+Step 3c.Find the command.This should be simple enough-the name for a given command is above that command's parameter.
+Step 3d.Now write the parameter,if needed,and press "Set" right of that command's parameter.
+Step 3e.Repeat Step 3's parts until you are done writing or modifying the program.
+
+A example would be:
+SELECT SLOT 1
+FORWARD ELSE GOTO 4
+GOTO 2
+MINE ELSE GOTO 2
+GOTO 2
+This will mine with the tool in slot 1.
+Note that as of the update in which you receive this version of the file,
+the default slot is 1,this is set when you Reset the robot,
+and thus SELECT SLOT 1 can be safely replaced with NOP.
+(Removing it would mean you would have to decrement the line numbers.)
+
+Step 4.Press Reset(goto 1) to start the robot.This will also reset the current slot to 1.
+Step 5.To pause a robot's operation,right click on it. Right click on it again and press "Resume" to continue.
+Step 6.To query where in the program a robot is,pause it,and look at the list on the left.
+       The current line is displayed with a >.
+NOTE:Robots cannot perform computation directly.
+     However,you can write programs that perform operations based upon the presence of blocks.
+     Thus,it may be possible to create a program and a pattern that act as a Turing-Complete language.
+     For the case of "I want to be able to extend my farm",
+     use a block to stop the robot going further than the edge of your farm,
+     then program the robot to return if blocked
+     (by turning twice,going forward until it hits something,then turning back)
+     You will need another block at the start to show the robot where the start is.
+
+
+--COMMANDS--
 -SCOUT-
 NOP:Do nothing.
 
