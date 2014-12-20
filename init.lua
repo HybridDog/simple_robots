@@ -238,6 +238,30 @@ local function vm_tp(pos1,dir,arg)
     vm_advance(pos2)
     return false
 end
+
+-- gets the dug sound of a node
+local ndsounds = {}
+local function get_nd_sound(name)
+	local sound = ndsounds[name]
+	if sound then
+		return sound
+	end
+	sound = minetest.registered_nodes[name]
+	if not sound then
+		return
+	end
+	sound = sound.sounds
+	if not sound then
+		return
+	end
+	sound = sound.dug
+	if not sound then
+		return
+	end
+	ndsounds[name] = sound
+	return sound
+end
+
 local function vm_mine(pos1,dir,arg)
     local meta=minetest.get_meta(pos1)
     local pos2=vector.add(pos1,dir)
@@ -249,6 +273,10 @@ local function vm_mine(pos1,dir,arg)
     fp:remove()
     --The block not being air is considered "failure".
     if (not vm_is_air(minetest.get_node(pos2))) then return vm_lookup(pos1,arg) end
+    local sound = get_nd_sound(node.name)
+    if sound then
+        minetest.sound_play(sound.name, {pos=pos2, gain=sound.gain})
+    end
     vm_advance(pos1)
     return false
 end
