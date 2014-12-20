@@ -10,7 +10,8 @@
 local MOD_NAME="simple_robots"
 
 --CONFIG
---NOTE:All of these can successfully be 0.
+--NOTE:You can set most of these to 0.
+--Do not set CPUTIME to 0,it's there to prevent crashes!
 local MOVETIME=1 --Time taken to move.
 local TURNTIME=1 --Time taken to turn.
 local PLACETIME=0.5 --Time taken to place.
