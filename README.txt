@@ -139,10 +139,6 @@ ITEM IN SLOT ELSE GOTO:If there is no item in the selected slot,
                        You should check for this after every mined block,
                        as any further mining may fill the slot-and you could lose drops.
 --FAQ--
-Q.I can't program the robots!
-A.Well,I can't help you with this.The guide above describes every command in detail,
-  but they are written to try and describe themselves in not-so-much detail.
-
 Q.These aren't able to do computations!
 A.I didn't want to make them too complicated-that was one of the problems people had with other systems.
   By averting that here,I'm trying to make Minetest robots easier than others to program.
@@ -161,20 +157,15 @@ A.I didn't want to make them too complicated-that was one of the problems people
   Pos would have to be replaced with the entity reference.
   Also,what about fakeplayer? I presume a seperate entity would exist,
   because some items are just cruel and want to hurt the player.
-
-Q.Tools don't follow proper timing.
-A.I know about this,but honestly,I couldn't care less.
-  If I or anyone else ever need a reason to screw with the VM timing system
-  (a 'know it works do not mess it up' part)
-  Then maybe it will be fixed.
-
+  
 Q.I know Lua,and I want to expand this.
 A.And you can do so(the license allows it).
 
 Q.The way you wrote the VM is weird.
 A.I have to account for metadata that may not even be addressable by the same index after the operation.
   Course the code's going to be weird.I pass positions sometimes,metadata on others,depends on if movement is involved.
-
+  Plus,as of my latest commit,you can't even rely on that.
+  
 Q.Who wrote this?
 A.Currently(EXPAND THIS IF YOU CONTRIBUTE):
   gamemanj on GitHub.
@@ -222,7 +213,7 @@ A.No surprise there.Since the owner could be offline,a "fake player" is used.
   If a crash does happen,then try using the item in the exact same manner a robot would.
   Should that replicate the crash,it's the item's fault,else,send details to the developer of this branch.
 
-Q.Why is it that DEPOSIT ALL is in miner?
+Q.Why is it that DEPOSIT ALL exists,but not RETRIEVE ALL?
 A.Because only miners receive items.
 
 Q.What inspired this?

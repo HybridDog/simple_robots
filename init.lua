@@ -9,6 +9,15 @@
 --It's not auto-detected,as if somebody uses a incorrect name,then renames it...
 local MOD_NAME="simple_robots"
 
+--CONFIG
+--NOTE:All of these can successfully be 0.
+local MOVETIME=1 --Time taken to move.
+local TURNTIME=1 --Time taken to turn.
+local PLACETIME=0.5 --Time taken to place.
+local PUNCHTIME=0.5 --Time taken to punch.
+local MINEPENALTYTIME=0 --Extra time needed to mine a block(a robot penalty if you will)
+local DEPOSITTIME=1 --Time taken for a DEPOSIT or RETRIEVE.Does not scale with items.
+local CPUTIME=1 --Time taken if more than 10 commands execute in a row without waiting.
 --TODO:Make it so that command sets are indexed in a sane way.
 --     At the moment,as all functions have some way of
 --     getting the "robot which is turned on" block ID for this tier,that's used.
@@ -28,10 +37,16 @@ local CODELINES=64
 --USELESS ENTITY(Basically abusing the 'player methods return safe values' behavior)
 --This entity needs to be explicitly cleaned up so that if a really bad error occurs during a MINE/PLACE,
 --the player has notification of "which robot broke everything"
-
 minetest.register_entity(MOD_NAME..":fakeplayer",
 {
-physical = false,
+	initial_properties = {
+		hp_max = 1,
+        physical = false,
+    },
+    on_step=function(self, dtime)
+        print("WARNING:Fakeplayer object survived more than 1 tick. This indicates a problem in the code. Report this issue,preferably working out which command caused this,under what conditions.")
+        self.object:remove()--I don't know why I have to check this.
+    end,
 })
 
 --PROGRAMMER INTERFACE
@@ -92,7 +107,14 @@ local function genProgrammer(ct,meta)
 end
 
 --VM
-
+local function vm_get_wielded(pos)
+    local meta=minetest.get_meta(pos)
+    return meta:get_inventory():get_stack("main",meta:get_int("robot_slot"))
+end
+local function vm_set_wielded(pos,is)
+    local meta=minetest.get_meta(pos)
+    return meta:get_inventory():set_stack("main",meta:get_int("robot_slot"),is)
+end
 --Fake player code.
 --This doesn't have to be perfect,
 --it just has to handle EXPECTED behaviors.
@@ -114,10 +136,10 @@ local function vm_fakeplayer(name,pos,fp_control,selectedslot)
         return minetest.get_meta(pos):get_inventory()
     end
     actual.get_wielded_item=function (_)
-        return minetest.get_meta(pos):get_inventory():get_stack("main",selectedslot)
+        return vm_get_wielded(pos)
     end
     actual.set_wielded_item=function (_,is)
-        return minetest.get_meta(pos):get_inventory():set_stack("main",selectedslot,is)
+        return vm_set_wielded(pos,is)
     end
     actual.get_player_control=function (_)
         return fp_control
@@ -195,27 +217,27 @@ local function vm_p_mine(owner,pos)
     return (not protected) and (not vm_is_air(nt))
 end
 
-local function vm_advance(pos)
+local function vm_advance(pos,rtime)
     local meta=minetest.get_meta(pos)
     local pc=meta:get_int("robot_pc")
-    if pc==CODELINES then meta:set_int("robot_pc",0) vm_shutdown(pos) return false end
+    if pc==CODELINES then meta:set_int("robot_pc",0) vm_shutdown(pos) return 1 end
     meta:set_int("robot_pc",pc+1)
-    return true
+    return rtime
 end
 --This originally supported labels,but I removed them to simplify things.
---There's only 32 lines.
-local function vm_lookup(pos,label)
+--There's only 64 lines.
+local function vm_lookup(pos,label,rtime)
     local x=tonumber(label)
     local meta=minetest.get_meta(pos)
     if x~=nil then
         if (x>0) and (x<=CODELINES) then
             meta:set_int("robot_pc",x)
-            return true
+            return rtime
         end
     end
     meta:set_int("robot_pc",0)
     vm_shutdown(pos)
-    return false
+    return 1
 end
 --TP COMMAND FUNCTION
 --Basically a "movement command" function.(as in,forward,up,down)
@@ -227,30 +249,60 @@ local function vm_tp(pos1,dir,arg)
     local pos2=vector.add(pos1,dir)
     local meta=minetest.get_meta(pos1)
     local ser=vm_serialize(pos1)
-    if not vm_p_place(ser.owner,pos2) then return vm_lookup(pos1,arg) end
+    if not vm_p_place(ser.owner,pos2) then return vm_lookup(pos1,arg,0) end
     minetest.set_node(pos2,minetest.get_node(pos1))
     minetest.set_node(pos1,{name="air"})
     
     nodeupdate(pos1)
     nodeupdate(pos2)
-    --NOTE:Meta is left invalid since both these calls use pos2.
+    --NOTE:Meta is still for pos1 since both these calls use positions.
     vm_deserialize(pos2,ser)
-    vm_advance(pos2)
-    return false
+    minetest.get_node_timer(pos2):start(MOVETIME)--Manually control the timer,since get_node_timer won't work.
+    return vm_advance(pos2,1)--This is basically so the VM doesn't run more commands.
 end
+--This is a complex method because the "best" tool needs to be found.
 local function vm_mine(pos1,dir,arg)
     local meta=minetest.get_meta(pos1)
     local pos2=vector.add(pos1,dir)
     local node=minetest.get_node(pos2)
-    if vm_is_air(node) then return vm_lookup(pos1,arg) end
+    if vm_is_air(node) then return vm_lookup(pos1,arg,0) end
+    --For some insane reason,
+    --this has to try both the current tool and the hand to find which is better.
+    --For example,I can use a stone pickaxe to dig dirt.
+    local dp_pool={}--Pool of "potential" digparams.
+    local dp_result=nil--Result.
+    --Hand.(For some reason this must be included
+    --      or it becomes inconsistent with players)
+    local toolcaps = ItemStack({name=":"}):get_tool_capabilities()
+    table.insert(dp_pool,minetest.get_dig_params(ItemStack({name=node.name}):get_definition().groups, toolcaps))
+    --Tool.
+    toolcaps = vm_get_wielded(pos1):get_tool_capabilities()
+    table.insert(dp_pool,minetest.get_dig_params(ItemStack({name=node.name}):get_definition().groups, toolcaps))
+    for k,v in ipairs(dp_pool) do
+        --get_dig_params is undocumented @ wiki,but it works.
+        --time:float,diggable:boolean
+        if v.diggable then
+            if dp_result==nil then
+                dp_result=v
+            else
+                --Compare,to find the most time-efficient dig method.
+                if dp_result.time>v.time then
+                    dp_result=v
+                end
+            end
+        end
+    end
+    --Check if unable to dig!
+    if not dp_result then return vm_lookup(pos1,arg,0) end
     local fp=vm_fakeplayer(meta:get_string("robot_owner"),pos1,{sneak=false},meta:get_int("robot_slot"))
-    if not fp then return vm_lookup(pos1,arg) end
+    if not fp then return vm_lookup(pos1,arg,0) end
     minetest.registered_nodes[node.name].on_dig(pos2, node, fp)
     fp:remove()
     --The block not being air is considered "failure".
-    if (not vm_is_air(minetest.get_node(pos2))) then return vm_lookup(pos1,arg) end
-    vm_advance(pos1)
-    return false
+    --HOWEVER,since the dig was a success,it takes time.
+    if (not vm_is_air(minetest.get_node(pos2))) then return vm_lookup(pos1,arg,dp_result.time+MINEPENALTYTIME) end
+    
+    return vm_advance(pos1,dp_result.time+MINEPENALTYTIME)
 end
 --NOTE:This handles both the use of a tool and the punch itself.
 local function vm_punch(pos1,dir,arg)
@@ -259,7 +311,7 @@ local function vm_punch(pos1,dir,arg)
     local node=minetest.get_node(pos2)
     local fp=vm_fakeplayer(meta:get_string("robot_owner"),pos1,{sneak=false},meta:get_int("robot_slot"))
     local stk=meta:get_inventory():get_stack("main",meta:get_int("robot_slot"))
-    if not fp then return vm_lookup(pos1,arg) end
+    if not fp then return vm_lookup(pos1,arg,0) end
     local success=false
     local pointedthing={type="nothing"}
     if (not vm_is_air(node)) then
@@ -275,32 +327,29 @@ local function vm_punch(pos1,dir,arg)
         success=true
     end
     fp:remove()
-    if not success then return vm_lookup(pos1,arg) end
-    vm_advance(pos1)
-    return false
+    if not success then return vm_lookup(pos1,arg,0) end
+    return vm_advance(pos1,PUNCHTIME)
 end
 local function vm_place(pos1,dir,arg)
     local meta=minetest.get_meta(pos1)
     local pos2=vector.add(pos1,dir)
-    if not vm_is_air(minetest.get_node(pos2)) then return vm_lookup(pos1,arg) end
+    if not vm_is_air(minetest.get_node(pos2)) then return vm_lookup(pos1,arg,0) end
     local owner=meta:get_string("robot_owner")
     local stk=meta:get_inventory():get_stack("main",meta:get_int("robot_slot"))
-    if stk:is_empty() then return vm_lookup(pos1,arg) end
+    if stk:is_empty() then return vm_lookup(pos1,arg,0) end
     local fp=vm_fakeplayer(owner,pos1,{sneak=true},meta:get_int("robot_slot"))
-    if not fp then return vm_lookup(pos1,arg) end
+    if not fp then return vm_lookup(pos1,arg,0) end
     local res,tf=stk:get_definition().on_place(stk,fp,{type="node",under=pos1,above=pos2})
     fp:remove()
     meta:get_inventory():set_stack("main",meta:get_int("robot_slot"),res)
-    if not tf then return vm_lookup(pos1,arg) end
-    vm_advance(pos1)
-    return false
+    if not tf then return vm_lookup(pos1,arg,PLACETIME) end
+    return vm_advance(pos1,PLACETIME)
 end
 local function vm_turn(pos,dir)
     local ser=vm_serialize(pos)
     minetest.set_node(pos,{name=minetest.get_node(pos).name,param2=((minetest.get_node(pos).param2+dir)%4)})
     vm_deserialize(pos,ser)
-    vm_advance(pos)
-    return false
+    return vm_advance(pos,TURNTIME)
 end
 --Main VM function.
 --This returns true if the VM should continue running this tick.
@@ -308,7 +357,7 @@ end
 local function vm_run(pos)
     local meta=minetest.get_meta(pos)
     local pc=meta:get_int("robot_pc")
-    if pc==0 then vm_shutdown(pos) return false end
+    if pc==0 then vm_shutdown(pos) return 1 end
     local command=meta:get_string("program_"..pc.."_op")
     local arg=meta:get_string("program_"..pc.."_msg")
     --print("RAN "..command.." "..arg)--debug,the actual ingame debugger isn't up yet,if there'll ever be one at all
@@ -320,7 +369,7 @@ local function vm_run(pos)
     --I have no intention to change this,the code's a mess as-is due to all the "failure conditions".
     if (command=="NOP") then
 
-        return vm_advance(pos)
+        return vm_advance(pos,0)
     end
     if command=="TURN LEFT" then
         return vm_turn(pos,-1)
@@ -356,12 +405,12 @@ local function vm_run(pos)
         return vm_punch(pos,{x=0,y=-1,z=0},arg)
     end
     if command=="GOTO" then
-        return vm_lookup(pos,arg)
+        return vm_lookup(pos,arg,0)
     end
     if command=="DEPOSIT ALL BUT SELECTED ELSE GOTO" then
         local pos2=vector.add(pos,minetest.facedir_to_dir(minetest.get_node(pos).param2))
         --Permissions check.
-        if not vm_p_mine(meta:get_string("robot_owner"),pos2) then return vm_lookup(pos1,arg) end
+        if not vm_p_mine(meta:get_string("robot_owner"),pos2) then return vm_lookup(pos1,arg,0) end
     
         --Okay,first:Is there a inventory in front of us with a sub-inventory called "main"?
         --If so,it's either another robot(wow,robot transport!),a chest,or a node breaker :)
@@ -376,23 +425,23 @@ local function vm_run(pos)
             for p=1,16 do
                 if p~=meta:get_int("robot_slot") then
                     local is=inv:add_item("main",my_inv:get_stack("main", p))
-                    if is~=nil then if is:is_empty() then lookup=true end end
+                    if is~=nil then if not is:is_empty() then lookup=true end end
                     my_inv:set_stack("main",p,is)
                 end
             end
         end
         if lookup then
-            return vm_lookup(pos,arg)
+            return vm_lookup(pos,arg,DEPOSITTIME)
         end
-        return vm_advance(pos)
+        return vm_advance(pos,DEPOSITTIME)
     end
     if command=="SELECT SLOT" then
         local p=tonumber(arg)
-        if p==nil then vm_shutdown(pos) return false end
-        if p<1 then vm_shutdown(pos) return false end
-        if p>16 then vm_shutdown(pos) return false end
+        if p==nil then vm_shutdown(pos) return 1 end
+        if p<1 then vm_shutdown(pos) return 1 end
+        if p>16 then vm_shutdown(pos) return 1 end
         meta:set_int("robot_slot",p)
-        return vm_advance(pos)
+        return vm_advance(pos,0)
     end
     if command=="PLACE ELSE GOTO" then
         return vm_place(pos,minetest.facedir_to_dir(minetest.get_node(pos).param2),arg)
@@ -406,7 +455,7 @@ local function vm_run(pos)
     --If this EVER happens,something is really wrong with the save file.
     print("Corrupted robot program @ "..(pos.x)..","..(pos.y)..","..(pos.z).." (not the fault of the robot's owner,this is save file corruption) missing command:"..tostring(command))
     vm_shutdown(pos)
-    return false
+    return 1
 end
 
 --VM RESET FUNCTION
@@ -469,9 +518,20 @@ local function register_robot_type(tp,name)
         end,
         on_timer = function (pos,elapsed)
             local i=0
-            while (vm_run(pos) and (i<10)) do i=i+1 end
+            local running=false
+            while (i<10) do
+                local a=vm_run(pos)
+                i=i+1
+                if a~=0 then
+                    local tmr = minetest.get_node_timer(pos)
+                    tmr:start(a)
+                    return false
+                end
+            end
             --Either the robot 'crashed' or we're now animating. In this function,the difference is purely academic.
-            return true
+            local tmr = minetest.get_node_timer(pos)
+            tmr:start(CPUTIME)
+            return false
         end,
         on_rightclick = function (pos, node, clicker, itemstack)
             local meta=minetest.get_meta(pos)
