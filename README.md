@@ -204,6 +204,7 @@ Why no variables?
 > I decided they may be too complicated.
 > However, a pickaxe only lasts for so long.
 > So,when it breaks, the robot can return, dump what it got into a chest,grab a new pickaxe, and continue mining.
+
 I can't program the robots!  
 > Maybe ask someone who can program them for help?
 > Find the Minetest Forums thread this mod is in, as people who like the mod probably know how to use it.
