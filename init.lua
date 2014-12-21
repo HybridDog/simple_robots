@@ -53,7 +53,10 @@ minetest.register_entity(MOD_NAME..":fakeplayer",
         physical = false,
     },
     on_step=function(self, dtime)
-        print("WARNING:Fakeplayer object survived more than 1 tick. This indicates a problem in the code. Report this issue,preferably working out which command caused this,under what conditions.")
+        print("WARNING:Fakeplayer object survived more than 1 tick.")
+        print("This indicates a problem in the code.")
+        print("Report this issue to the maintainer of this branch,")
+        print("preferably working out which command caused this, under what conditions.")
         self.object:remove()--I don't know why I have to check this.
     end,
 })
@@ -64,7 +67,7 @@ local command_sets={}
 command_sets["scout"]={"NOP","GOTO","FORWARD ELSE GOTO","TURN LEFT","TURN RIGHT","UPWARD ELSE GOTO","DOWNWARD ELSE GOTO"}
 command_sets["miner"]={"MINE ELSE GOTO","MINE UP ELSE GOTO","MINE DOWN ELSE GOTO","PUNCH ELSE GOTO","PUNCH UP ELSE GOTO","PUNCH DOWN ELSE GOTO"}
 command_sets["builder"]={"PLACE ELSE GOTO","PLACE UP ELSE GOTO","PLACE DOWN ELSE GOTO"}
-command_sets["inventory"]={"SELECT SLOT","DEPOSIT SELECTED ELSE GOTO","DEPOSIT ALL BUT SELECTED ELSE GOTO","TAKE INTO SELECTED ELSE GOTO","TAKE ALL AVOID SELECTED ELSE GOTO"}
+command_sets["inventory"]={"SELECT SLOT","DEPOSIT SELECTED ELSE GOTO","DEPOSIT ALL BUT SELECTED ELSE GOTO","TAKE INTO SELECTED ELSE GOTO","TAKE ALL AVOID SELECTED ELSE GOTO","SWAP SELECTED WITH SLOT","IF SELECTED EMPTY THEN GOTO"}
 --Command set sets are how the user chooses between the wide assortment of commands available in a simple manner.
 --(Read:It allows choosing which set you use.)
 local command_set_sets={}
@@ -134,7 +137,7 @@ local function vm_fakeplayer(name,pos,fp_control,selectedslot)
     local actual={}
     local actual_meta={}
     actual_meta.__index=function(tab,ind)
-        print("UNIMPLEMENTED ROBOT FUNCTION:"..ind)
+        --print("UNIMPLEMENTED ROBOT FUNCTION:"..ind)
         local i=fake_player[ind]
         return function(...) local a={...} a[1]=fake_player return i(unpack(a)) end
     end
@@ -605,6 +608,25 @@ local function vm_run(pos)
     end
     if command=="PLACE DOWN ELSE GOTO" then
         return vm_place(pos,{x=0,y=-1,z=0},arg)
+    end
+    if command=="SWAP SELECTED WITH SLOT" then
+        local p=tonumber(arg)
+        if p==nil then vm_shutdown(pos) return 1 end
+        if p<1 then vm_shutdown(pos) return 1 end
+        if p>16 then vm_shutdown(pos) return 1 end
+        local inv=meta:get_inventory()
+        local is=inv:get_stack("main",meta:get_int("robot_slot"))
+        local is2=inv:get_stack("main",p)
+        inv:set_stack("main",p,is)
+        inv:set_stack("main",meta:get_int("robot_slot"),is2)
+        return vm_advance(pos,0)
+    end
+    if command=="IF SELECTED EMPTY THEN GOTO" then
+        local is=meta:get_inventory():get_stack("main",meta:get_int("robot_slot"))
+        if is:is_empty() then
+            return vm_lookup(pos,arg,0)
+        end
+        return vm_advance(pos,0)
     end
     --If this EVER happens,something is really wrong with the save file.
     print("Corrupted robot program @ "..(pos.x)..","..(pos.y)..","..(pos.z).." (not the fault of the robot's owner,this is save file corruption) missing command:"..tostring(command))

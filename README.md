@@ -165,7 +165,7 @@ PLACE DOWN ELSE GOTO
 
 ##INVENTORY
 SELECT SLOT
-> Selects a slot. If the number given is invalid,shuts down.
+> Selects a slot. If the number in the parameter field is invalid,shuts down.
 
 DEPOSIT SELECTED ELSE GOTO
 > Moves one item from the currently selected slot into a external storage in front of the robot.
@@ -191,6 +191,14 @@ TAKE ALL AVOID SELECTED ELSE GOTO
 > Moves everything from a external storage into the internal storage.
 > However, the selected slot is not used.
 > If there wasn't enough room to fit everything, or the target inventory is missing, then goto a line number.
+> Failing that, shutdown.
+
+SWAP SELECTED WITH SLOT
+> Swaps the selected slot with the number in the parameter field.
+> If the slot number is invalid, shutdown.
+
+IF SELECTED EMPTY THEN GOTO
+> If the selected slot is empty,then goto a line number.
 > Failing that, shutdown.
 
 #AUTHORS
