@@ -17,11 +17,19 @@ local TURNTIME=1 --Time taken to turn.
 local PLACETIME=0.5 --Time taken to place.
 local PUNCHTIME=0.5 --Time taken to punch.
 local MINEPENALTYTIME=0 --Extra time needed to mine a block(a robot penalty if you will)
-local DEPOSITTIME=1 --Time taken for a DEPOSIT or RETRIEVE.Does not scale with items.
+local DEPOSITTIME=1 --Time taken for a DEPOSIT.Does not scale with items.
+local RETRIEVETIME=1 --Time taken for a RETRIEVE.Does not scale with items.
 local CPUTIME=1 --Time taken if more than 10 commands execute in a row without waiting.
 --TODO:Make it so that command sets are indexed in a sane way.
 --     At the moment,as all functions have some way of
 --     getting the "robot which is turned on" block ID for this tier,that's used.
+--TODO:Modularize commands.A simple API that relies on knowledge of the metas should work.
+--     Things like movement should stay internal,
+--     but commands with hardly any function dependencies can be exported.
+--     (that is,all mining commands)
+--     Probably best the "scout" page stay internal,"miner" "builder" "inventory" can be exported.
+--     (Also,move vm_shutdown into the API,plus get rid of vm_p_mine and friends)
+
 --TIMING RULES FOR ROBOTS
 --Essentially,if a command is "structural" (nop,goto,forward if the robot is blocked,up under said conditions,down-ditto)
 --Then the command will add 1 to a counter(starting at 0) and simply continue in the same tick.
@@ -56,7 +64,7 @@ local command_sets={}
 command_sets["scout"]={"NOP","GOTO","FORWARD ELSE GOTO","TURN LEFT","TURN RIGHT","UPWARD ELSE GOTO","DOWNWARD ELSE GOTO"}
 command_sets["miner"]={"MINE ELSE GOTO","MINE UP ELSE GOTO","MINE DOWN ELSE GOTO","PUNCH ELSE GOTO","PUNCH UP ELSE GOTO","PUNCH DOWN ELSE GOTO"}
 command_sets["builder"]={"PLACE ELSE GOTO","PLACE UP ELSE GOTO","PLACE DOWN ELSE GOTO"}
-command_sets["inventory"]={"SELECT SLOT","DEPOSIT ALL BUT SELECTED ELSE GOTO"}
+command_sets["inventory"]={"SELECT SLOT","DEPOSIT SELECTED ELSE GOTO","DEPOSIT ALL BUT SELECTED ELSE GOTO","TAKE INTO SELECTED ELSE GOTO","TAKE ALL AVOID SELECTED ELSE GOTO"}
 --Command set sets are how the user chooses between the wide assortment of commands available in a simple manner.
 --(Read:It allows choosing which set you use.)
 local command_set_sets={}
@@ -92,18 +100,18 @@ local function genProgrammer(ct,meta)
         for p,v in ipairs(set) do
             --This deliberately acts against the auto-spacing to conserve space
             --for more commands.
-            res=res.."button[7.25,"..(p+0.2)..";1,1;cmd"..p..";Set]"
-            res=res.."field[3.25,"..(p+0.2)..";4,1;msg"..p..";"..v..";]"
+            res=res.."button[8.25,"..(p+0.2)..";1,1;cmd"..p..";Set]"
+            res=res.."field[3.25,"..(p+0.2)..";5,1;msg"..p..";"..v..";]"
         end
     end
-    res=res.."label[8.25,-0.25;Player Inventory]"
-    res=res.."label[8.25,4.2;Robot Inventory]"
-    res=res.."list[current_player;main;8.25,0.25;8,4;]"
-    res=res.."list[context;main;8.25,4.7;8,2;]"
+    res=res.."label[9.25,-0.25;Player Inventory]"
+    res=res.."label[9.25,4.2;Robot Inventory]"
+    res=res.."list[current_player;main;9.25,0.25;8,4;]"
+    res=res.."list[context;main;9.25,4.7;8,2;]"
 
     --Reset resets the robot,resume simply resumes it.
-    res=res.."button[8.25,"..(wid-1.75)..";1.75,1;reset;Reset(goto 1)]"
-    res=res.."button[9.75,"..(wid-1.75)..";1.25,1;resume;Resume]"
+    res=res.."button[9.25,"..(wid-1.75)..";1.75,1;reset;Reset(goto 1)]"
+    res=res.."button[10.75,"..(wid-1.75)..";1.25,1;resume;Resume]"
     return res
 end
 
@@ -407,11 +415,99 @@ local function vm_place(pos1,dir,arg)
     end
     return vm_advance(pos1,PLACETIME)
 end
+
 local function vm_turn(pos,dir)
     local ser=vm_serialize(pos)
     minetest.set_node(pos,{name=minetest.get_node(pos).name,param2=((minetest.get_node(pos).param2+dir)%4)})
     vm_deserialize(pos,ser)
     return vm_advance(pos,TURNTIME)
+end
+
+local function vm_getfrontinv(meta,pos)
+    --Okay,first:Is there a inventory in front of us with a sub-inventory called "main"?
+    --If so,it's either another robot(wow,robot transport!),a chest,or a node breaker :)
+    --None are any loss.
+    --(Course,I have yet to handle the case of locked chests,or really any inventory permissions stuff.)
+    local pos2=vector.add(pos,minetest.facedir_to_dir(minetest.get_node(pos).param2))
+    if vm_is_air(minetest.get_node(pos2)) then return nil end
+    --Permissions check.
+    if not vm_p_mine(meta:get_string("robot_owner"),pos2) then return nil end
+    local tgtmeta=minetest.get_meta(pos2)
+    if not tgtmeta then return nil end
+    local inv=tgtmeta:get_inventory()
+    if not inv then return nil end
+    if inv:get_size("main")<1 then return nil end
+    return inv
+end
+
+local function vm_deposit(pos,slots)
+    local meta=minetest.get_meta(pos)
+    
+    local my_inv=meta:get_inventory()
+    local inv=vm_getfrontinv(meta,pos)
+    if not inv then return vm_lookup(pos,arg,0) end
+    local lookup=false
+    for _,p in ipairs(slots) do
+        local is=my_inv:get_stack("main", p)
+        is=inv:add_item("main",is)
+        if is~=nil then if not is:is_empty() then lookup=true end end
+        my_inv:set_stack("main",p,is)
+    end
+    if lookup then
+        return vm_lookup(pos,arg,DEPOSITTIME)
+    end
+    return vm_advance(pos,DEPOSITTIME)
+end
+
+--vm_retrieve_add:Basically InvRef:add_item,but limited to slots.
+--                This modifies stack,so no return is needed.
+--                If this is at least a partial success,it returns true.
+--                (complete success can be inferred from stack:is_empty())
+local function vm_retrieve_add(invref,slots,stack)
+    local oldcount=stack:get_count()
+    --Basically,go through each slot,subtract what we do manage to get in from stack.
+    for k,v in ipairs(slots) do
+        if stack:is_empty() then return true end --Return if empty.
+        local tis=invref:get_stack("main",v)
+        --add_item doesn't specify if metadata is added,even on a clear slot.
+        --Just in case,if it's a clear slot,then why add_item?
+        --Also handles possibility of tis being nil.
+        if (tis==nil) or tis:is_empty() then
+            invref:set_stack("main",v,stack)
+            stack:clear()--entire stack was inserted.
+            return true
+        end
+        stack=tis:add_item(stack)
+        invref:set_stack("main",v,tis)
+    end
+    return oldcount>stack:get_count()
+end
+
+--Main retrieve command function.
+--slots describes the amount of slots.
+--If partial_success is set,then as long as at least 1 item is transferred,
+--it will be considered a success.
+local function vm_retrieve(pos,slots,partial_success)
+    local meta=minetest.get_meta(pos)
+    local my_inv=meta:get_inventory()
+    local inv=vm_getfrontinv(meta,pos)
+    if not inv then return vm_lookup(pos,arg,0) end
+    local failure=partial_success
+    for p=1,inv:get_size("main") do
+        local is=inv:get_stack("main",p)
+        if not is:is_empty() then
+            local res=vm_retrieve_add(my_inv,slots,is)
+            inv:set_stack("main",p,is)
+            if partial_success then
+                if res then failure=false end
+            else
+                if not is:is_empty() then failure=true end
+            end
+        end
+    end
+    if failure and partial_success then return vm_lookup(pos,arg,0) end
+    if failure then return vm_lookup(pos,arg,RETRIEVETIME) end
+    return vm_advance(pos,RETRIEVETIME)
 end
 --Main VM function.
 --This returns true if the VM should continue running this tick.
@@ -470,34 +566,28 @@ local function vm_run(pos)
         return vm_lookup(pos,arg,0)
     end
     if command=="DEPOSIT ALL BUT SELECTED ELSE GOTO" then
-        local pos2=vector.add(pos,minetest.facedir_to_dir(minetest.get_node(pos).param2))
-        if vm_is_air(minetest.get_node(pos2)) then return vm_lookup(pos,arg,0) end
-        --Permissions check.
-        if not vm_p_mine(meta:get_string("robot_owner"),pos2) then return vm_lookup(pos,arg,0) end
-        
-        --Okay,first:Is there a inventory in front of us with a sub-inventory called "main"?
-        --If so,it's either another robot(wow,robot transport!),a chest,or a node breaker :)
-        --None are any loss.
-        local tgtmeta=minetest.get_meta(pos2)
-        if not tgtmeta then return vm_lookup(pos,arg,0) end
-        local my_inv=meta:get_inventory()
-        local inv=tgtmeta:get_inventory()
-        local lookup=false
-        if inv:get_size("main")<1 then
-            lookup=true
-        else
-            for p=1,16 do
-                if p~=meta:get_int("robot_slot") then
-                    local is=inv:add_item("main",my_inv:get_stack("main", p))
-                    if is~=nil then if not is:is_empty() then lookup=true end end
-                    my_inv:set_stack("main",p,is)
-                end
+        local sl={}
+        for p=1,16 do
+            if p~=meta:get_int("robot_slot") then
+                table.insert(sl,p)
             end
         end
-        if lookup then
-            return vm_lookup(pos,arg,DEPOSITTIME)
+        return vm_deposit(pos,sl)
+    end
+    if command=="DEPOSIT SELECTED ELSE GOTO" then
+        return vm_deposit(pos,{meta:get_int("robot_slot")})
+    end
+    if command=="TAKE INTO SELECTED ELSE GOTO" then
+        return vm_retrieve(pos,{meta:get_int("robot_slot")},true)
+    end
+    if command=="TAKE ALL AVOID SELECTED ELSE GOTO" then
+        local sl={}
+        for p=1,16 do
+            if p~=meta:get_int("robot_slot") then
+                table.insert(sl,p)
+            end
         end
-        return vm_advance(pos,DEPOSITTIME)
+        return vm_retrieve(pos,sl,false)
     end
     if command=="SELECT SLOT" then
         local p=tonumber(arg)

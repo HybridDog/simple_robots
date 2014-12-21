@@ -72,11 +72,12 @@ NOP
 GOTO
 > Goes to a line.
 > If the argument(aka parameter) is not present or is invalid,shuts down the robot.
+> This is written elsewhere as "Failing that, shutdown."
 
 FORWARD ELSE GOTO
 > Goes forward 1 block.
-> If this fails,then goes to a line number if the argument field is present.  
-> (If the argument is not present or is invalid,then failing shuts down the robot.)
+> If this fails, then goes to a line number.
+> Failing that, shutdown.
 
 TURN LEFT
 > Turns left.
@@ -86,32 +87,32 @@ TURN RIGHT
 
 UPWARD ELSE GOTO
 > Goes up 1 block.
-> If this fails,then goes to a line number.
-> (no argument=shutdown)
+> If this fails, then goes to a line number.
+> Failing that, shutdown.
 
 DOWNWARD ELSE GOTO
 > Goes down 1 block.
-> If this fails,then goes to a line number.
-> (no argument=shutdown)
+> If this fails, then goes to a line number.
+> Failing that, shutdown.
 
 ##MINER
 MINE ELSE GOTO
 > Mines in front of the robot,using a item from the internal inventory.  
-> If this fails,then goes to a line number.(no argument=shutdown)  
-> Mining will place blocks and items into the robot's inventory.  
-> Failing that,the robot will drop them.
+> Mining will place blocks and items into the robot's inventory, or drop them if they could not be stored.
+> If this fails, then goes to a line number.
+> Failing that, shutdown.
 
 MINE UP ELSE GOTO
 > Mines above the robot,using a item from the internal inventory.  
-> If this fails,then goes to a line number.  
-> See MINE ELSE GOTO for where the drops go.  
-> (no argument=shutdown)
+> Mining will place blocks and items into the robot's inventory, or drop them if they could not be stored.
+> If this fails, then goes to a line number.
+> Failing that, shutdown.
 
 MINE DOWN ELSE GOTO
 > Mines below the robot,using a item from the internal inventory.  
-> If this fails,then goes to a line number.  
-> See MINE ELSE GOTO for where the drops go.  
-> (no argument=shutdown)
+> Mining will place blocks and items into the robot's inventory, or drop them if they could not be stored.
+> If this fails, then goes to a line number.
+> Failing that, shutdown.
 
 PUNCH ELSE GOTO
 > Punches in front of the robot,using a item from the internal inventory.  
@@ -120,7 +121,8 @@ PUNCH ELSE GOTO
 > using a hoe of farmland if a hoe is selected,
 > rolling paint with paint_roller, and various other things.
 > The only failure condition is if there's no node AND there's no tool.  
-> If this fails,then goes to a line number.(no argument=shutdown)
+> If this fails, then goes to a line number.
+> Failing that, shutdown.
 
 PUNCH UP ELSE GOTO
 > Punches above the robot,using a item from the internal inventory.  
@@ -129,8 +131,8 @@ PUNCH UP ELSE GOTO
 > using a hoe of farmland if a hoe is selected,
 > rolling paint with paint_roller, and various other things.
 > The only failure condition is if there's no node AND there's no tool.  
-> If this fails,then goes to a line number.  
-> (no argument=shutdown)
+> If this fails, then goes to a line number.
+> Failing that, shutdown.
 
 PUNCH DOWN ELSE GOTO
 > Punches below the robot,using a item from the internal inventory.  
@@ -139,37 +141,57 @@ PUNCH DOWN ELSE GOTO
 > using a hoe of farmland if a hoe is selected,
 > rolling paint with paint_roller, and various other things.
 > The only failure condition is if there's no node AND there's no tool.  
-> If this fails,then goes to a line number.  
-> (no argument=shutdown)
+> If this fails, then goes to a line number.
+> Failing that, shutdown.
 
 ##BUILDER
 PLACE ELSE GOTO
 > Places a item ahead of the robot from the internal inventory,  
 > in the selected slot.  
-> If the item couldn't be placed,then goto a line number.  
-> Failing that,shutdown.
+> If the item couldn't be placed, then goto a line number.  
+> Failing that, shutdown.
 
 PLACE UP ELSE GOTO
 > Places a item above the robot from the internal inventory,  
 > in the selected slot.  
-> If the item couldn't be placed,then goto a line number.  
-> Failing that,shutdown.
+> If the item couldn't be placed, then goto a line number.  
+> Failing that, shutdown.
 
 PLACE DOWN ELSE GOTO
 > Places a item below the robot from the internal inventory,  
 > in the selected slot.  
 > If the item couldn't be placed,then goto a line number.  
-> Failing that,shutdown.
+> Failing that, shutdown.
 
 ##INVENTORY
 SELECT SLOT
-> Selects a slot.If the number given is invalid,shuts down.
+> Selects a slot. If the number given is invalid,shuts down.
+
+DEPOSIT SELECTED ELSE GOTO
+> Moves one item from the currently selected slot into a external storage in front of the robot.
+> If only part or none of the stack was transferrable (too much in the target inventory,for example), then goto a line number.
+> Failing that, shutdown.
+> (Empty stacks do not cause a GOTO.)
 
 DEPOSIT ALL BUT SELECTED ELSE GOTO
-> Moves most items from the 16-slot "internal" storage to a external storage in front of the robot,  
-> except for the selected slot.
-> If not everything was transferred(for any reason,including there being no storage),  
-> then goto a line number. (no argument=shutdown)
+> Moves most items from the 16-slot "internal" storage to a external storage in front of the robot, except for the selected slot.
+> If not everything was transferred(for any reason,including there being no storage), then goto a line number.
+> Failing that, shutdown.
+> (A empty inventory does not cause a GOTO,as 'everything' was transferred.)
+
+TAKE INTO SELECTED ELSE GOTO
+> Moves 1 stack from a external storage into the selected slot.
+> The "stack" is gotten by going through the whole inventory, and taking items.
+> The stack will be of the first type found,so 1 cobble followed by 1 sand and then another cobble will result in 2 cobble.
+> If none of the stack was transferrable (already a full stack in the slot,for instance), then goto a line number.
+> Failing that, shutdown.
+> (Empty chests do not cause a GOTO.)
+
+TAKE ALL AVOID SELECTED ELSE GOTO
+> Moves everything from a external storage into the internal storage.
+> However, the selected slot is not used.
+> If there wasn't enough room to fit everything, or the target inventory is missing, then goto a line number.
+> Failing that, shutdown.
 
 #AUTHORS
 Expand this if you contribute!
@@ -178,9 +200,13 @@ Authors are:
 > HybridDog on GitHub,for adding place/dig sounds.
 
 #FAQ  
+Why no variables?
+> I decided they may be too complicated.
+> However, a pickaxe only lasts for so long.
+> So,when it breaks, the robot can return, dump what it got into a chest,grab a new pickaxe, and continue mining.
 I can't program the robots!  
 > Maybe ask someone who can program them for help?
-> Find the Minetest Forums thread this mod is in for more.
+> Find the Minetest Forums thread this mod is in, as people who like the mod probably know how to use it.
 
 I know Lua,and I want to expand this.  
 > And you can do so(the license allows it).
@@ -194,18 +220,16 @@ Why does creative mode mess with robots/How do I protect my server from robots/H
 > Essentially,all robots run as their owner by creating a entity,then using metatables to disguise it.  
 > This includes area protection.  
 > Robots can cause protection violations by any physical action apart from movement.  
-> If a robot attempts to move into a protected zone,it will simply fail to do so,  
-> without a protection warning.  
-> If a robot attempts to mine into a protected zone,  
-> it will cause a protection violation.(The robot will see it as a failure,which here means "undiggable/air")  
-> If you are a server owner afraid of robots,  
-> simply ensure players can't get them unless they forfeit access to most server land.  
-> (as in,whitelist certain places they can build)  
-> Robots can only work where the player that owns them can,so limiting the player limits the robots.
+> If a robot attempts to move into a protected zone,it will simply fail to do so, without a protection warning.  
+> If a robot attempts to mine into a protected zone, it will cause a protection violation.(The robot will see it as a failure,which here means "undiggable/air")  
+> If you are a server owner afraid of robots, simply ensure players can't get them unless they forfeit access to most server land.  
+> (as in,whitelist certain places they can build)
+> Robots can only work where the player that owns them can, so limiting the player limits the robots.
 > This is by design-the robots are always under the player's orders.
 
 Can someone take over my robot and blame it on me?  
-> Not unless they can change the program data,which requires admin abilities.(no,you can't use a fake formspec)
+> Not unless they can change the metadata, which requires admin abilities.
+> The GUI will refuse anything sent by unauthorized players.
 
 Using certain items with PLACE and MINE doesn't work/crashes the server.
 > No surprise there.Since the owner could be offline,a "fake player" is used.
@@ -215,7 +239,11 @@ Using certain items with PLACE and MINE doesn't work/crashes the server.
 > If a crash does happen,then try using the item in the exact same manner a robot would.
 > Should that replicate the crash,it's the item's fault,else,send details to the maintainer of this branch.
 
-What inspired this?  
+How is it this works with (insert inventory here), when Pipeworks had to perform overrides?
+> It is a unwritten rule that any inventory you want machines to access should be called "main".
+> Hence, any node containing such a inventory is fully compatible.
+
+What inspired this?
 > Indirectly,the OpenComputers Navigation library being abandoned due to the Microsoft buyup of Mojang,in favour of Minetest.
 > I noticed a lack of turtles and computers on Minetest.
 > Turtles are more important,as they can be used for automation purposes
