@@ -1,4 +1,18 @@
---SIMPLE_ROBOTS CORE
+--Copyright 2014 gamemanj
+--
+--Licensed under the Apache License, Version 2.0 (the "License");
+--you may not use this file except in compliance with the License.
+--You may obtain a copy of the License at
+--
+--    http://www.apache.org/licenses/LICENSE-2.0
+--
+--Unless required by applicable law or agreed to in writing, software
+--distributed under the License is distributed on an "AS IS" BASIS,
+--WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+--See the License for the specific language governing permissions and
+--limitations under the License.
+
+--init.lua:simple_robots core.
 --This file handles the core of simple_robots.
 --It contains the basic programming interface,and functions to define robots.
 --It also creates the simple_robots API.
@@ -70,8 +84,38 @@ simple_robots.commands={}
 --     Probably best the "scout" page stay internal,"miner" "builder" "inventory" can be exported.
 --     (Also,move vm_shutdown into the API,plus get rid of vm_p_mine and friends)
 
---NOTE:DO NOT CHANGE!
+--NOTE:DO NOT CHANGE CODELINES!
 local CODELINES=64
+
+local license={
+"simple_robots:Copyright 2014 gamemanj",
+"",
+"Licensed under the Apache License, Version 2.0 (the \"License\");",
+"you may not use this file except in compliance with the License.",
+"You may obtain a copy of the License at",
+"",
+"    http://www.apache.org/licenses/LICENSE-2.0",
+"",
+"Unless required by applicable law or agreed to in writing, software",
+"distributed under the License is distributed on an \"AS IS\" BASIS,",
+"WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",
+"See the License for the specific language governing permissions and",
+"limitations under the License.",
+}
+local licenseformspec="size[14,8] button_exit[0,7;2,1;exit;Close] "
+for k,v in ipairs(license) do
+    licenseformspec=licenseformspec.." label[0,"..(k/2)..";"..minetest.formspec_escape(v).."]"
+end
+--Send the license to the player. This is for the sake of server owners.
+minetest.register_chatcommand("simple_robots_showlicense",
+{
+    params = "",
+    description="Show the license notice for simple_robots.",
+    func = function(name)
+        minetest.show_formspec(name, "simple_robots:license", licenseformspec)
+        return true, "Done."
+    end,
+})
 
 --USELESS ENTITY(Basically abusing the 'player methods return safe values' behavior)
 --on_step is there in case a "leak" occurs(object not removed).
@@ -138,6 +182,7 @@ local function genProgrammer(pages,meta)
     --Reset resets the robot,resume simply resumes it.
     res=res.."button[9.25,"..(wid-1.75)..";1.75,1;reset;Reset(goto 1)]"
     res=res.."button[10.75,"..(wid-1.75)..";1.25,1;resume;Resume]"
+
     return res
 end
 
