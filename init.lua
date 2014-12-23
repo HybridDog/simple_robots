@@ -37,12 +37,11 @@ if CPUTIME<0.05 then error("CPUTIME too low. Please do not disable this safety f
 --This note added because I once made a similar mistake. --gamemanj
 
 --TODO LIST!
---1.Add API documentation in Markdown for those who like that.
---2.Fix inventory commands. Currently they ignore metadata permissions.
---3.Add the ability to select inventories.
+--1.Fix inventory commands. Currently they ignore metadata permissions.
+--2.Add the ability to select inventories.
 --  Rely on formspec.
 --  If a slot isn't in the formspec,
---  we're not allowed to use it.
+--  then chances are it's not supposed to be visible.
 --  As nice as support for locked chests is,
 --  it's not so nice to be eaten by server owners.
 --  Note that we CANNOT USE PIPEWORKS FOR THIS.
@@ -73,6 +72,9 @@ simple_robots.pagesets={}
 --This should be used somewhat like: return vm_advance(pos,MOVETIME)
 --Movement commands should manually set the timer in the place they move to.
 simple_robots.commands={}
+
+--Custom metadata.
+simple_robots.custommetas={}
 
 --TODO:Make it so that command sets are indexed in a sane way.
 --     At the moment,as all functions have some way of
@@ -254,6 +256,16 @@ function simple_robots.robot_to_table(pos)
     ser.owner=meta:get_string("robot_owner")
     ser.prog=simple_robots.meta_to_program(meta)
     ser.inv=meta:get_inventory():get_list("main")--All's fair in love,war,and minetest modding.
+    ser.custommetas={}
+
+    for k,v in pairs(simple_robots.custommetas) do
+        if type(v)=="string" then
+            ser.custommetas[k]=meta:get_string(k)
+        end
+        if type(v)=="number" then
+            set.custommetas[k]=meta:get_int(k)
+        end
+    end
     return ser
 end
 function simple_robots.table_to_robot(pos,ser)
@@ -263,6 +275,15 @@ function simple_robots.table_to_robot(pos,ser)
     meta:set_string("robot_owner",ser.owner)
     simple_robots.program_to_meta(meta,ser.prog)
     ser.inv=meta:get_inventory():set_list("main",ser.inv)
+
+    for k,v in pairs(ser.custommetas) do
+        if type(v)=="string" then
+            meta:set_string(k,v)
+        end
+        if type(v)=="number" then
+            meta:set_int(k,v)
+        end
+    end
 end
 
 --Will shutdown the robot.
@@ -329,7 +350,7 @@ local function vm_run(pos)
     if pc==0 then simple_robots.shutdownat(pos) return nil end
     local command=meta:get_string("program_"..pc.."_op")
     local arg=meta:get_string("program_"..pc.."_msg")
-    print("RAN "..command)
+    --print("RAN "..command)
     local cfunc=simple_robots.commands[command]
     if cfunc~=nil then
         return cfunc(pos,arg)
@@ -354,6 +375,15 @@ function simple_robots.resetmeta(meta)
     --Runtime variables
     meta:set_int("robot_pc", 1)
     meta:set_int("robot_slot", 1)
+    --Custom metadata
+    for k,v in pairs(simple_robots.custommetas) do
+        if type(v)=="string" then
+            meta:set_string(k,v)
+        end
+        if type(v)=="number" then
+            meta:set_int(k,v)
+        end
+    end
 end
 
 --ROBOT BLOCK
