@@ -38,11 +38,21 @@ local function vm_get_node_dug_sound(name)
     return sound
 end
 
+--Gets the nodedef.diggable property(with a sanity check)
+local function vm_diggable(nodename)
+    local nodedef = minetest.registered_nodes[nodename]
+    if not nodedef then
+        return
+    end
+    --I don't believe it is possible to dig a node you can't hit.
+    return nodedef.diggable and nodedef.pointable
+end
+
 local function vm_mine(pos1,dir,arg)
     local meta=minetest.get_meta(pos1)
     local pos2=vector.add(pos1,dir)
     local node=minetest.get_node(pos2)
-    if simple_robots.vm_is_air(node) then return simple_robots.vm_lookup(pos1,arg,0) end
+    if not vm_diggable(node.name) then return simple_robots.vm_lookup(pos1,arg,0) end
     --For some insane reason,
     --this has to try both the current tool and the hand to find which is better.
     --For example,I can use a stone pickaxe to dig dirt.
@@ -100,6 +110,14 @@ end
 
 --"PUNCH ELSE GOTO" "PUNCH UP ELSE GOTO" "PUNCH DOWN ELSE GOTO"
 
+local function vm_pointable(nodename)
+    local nodedef = minetest.registered_nodes[nodename]
+    if not nodedef then
+        return
+    end
+    return nodedef.pointable
+end
+
 --NOTE:This handles both the use of a tool and the punch itself.
 local function vm_punch(pos1,dir,arg)
     local meta=minetest.get_meta(pos1)
@@ -110,7 +128,7 @@ local function vm_punch(pos1,dir,arg)
     if not fp then return simple_robots.vm_lookup(pos1,arg,0) end
     local success=false
     local pointedthing={type="nothing"}
-    if (not simple_robots.vm_is_air(node)) then
+    if vm_pointable(node.name) then
         pointedthing={type="node",above=pos1,under=pos2}
         minetest.registered_nodes[node.name].on_punch(pos2, node, fp,pointedthing)
         success=true
