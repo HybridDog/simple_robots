@@ -37,18 +37,29 @@ local function vm_get_node_place_sound(name)
     end
     return sound
 end
-
+local function vm_buildable_to(name)
+    local nodedef=minetest.registered_nodes[name]
+    if not nodedef then return true end
+    return nodedef.buildable_to
+end
+local function vm_pointable(name)
+    local nodedef=minetest.registered_nodes[name]
+    if not nodedef then return false end
+    return nodedef.pointable
+end
 local function vm_place(pos1,dir,arg)
     local meta=minetest.get_meta(pos1)
     local pos2=vector.add(pos1,dir)
-    if not simple_robots.vm_is_air(minetest.get_node(pos2)) then return simple_robots.vm_lookup(pos1,arg,0) end
+    if not vm_buildable_to(minetest.get_node(pos2).name) then return simple_robots.vm_lookup(pos1,arg,0) end
     local owner=meta:get_string("robot_owner")
     local stk=meta:get_inventory():get_stack("main",meta:get_int("robot_slot"))
     if stk:is_empty() then return simple_robots.vm_lookup(pos1,arg,0) end
     local fp=simple_robots.vm_fakeplayer(owner,pos1,{sneak=true},meta:get_int("robot_slot"))
     if not fp then return simple_robots.vm_lookup(pos1,arg,0) end
     local stackdef=stk:get_definition()
-    local res,tf=stackdef.on_place(stk,fp,{type="node",under=pos1,above=pos2})
+    local pa_under=vector.add(pos2,dir)
+    if not vm_pointable(minetest.get_node(pa_under).name) then pa_under=pos1 end
+    local res,tf=stackdef.on_place(stk,fp,{type="node",under=pa_under,above=pos2})
     fp:remove()
     meta:get_inventory():set_stack("main",meta:get_int("robot_slot"),res)
     if not tf then return simple_robots.vm_lookup(pos1,arg,PLACETIME) end
