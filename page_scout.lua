@@ -55,7 +55,7 @@ local function vm_tp(pos1,dir,arg)
     if not simple_robots.vm_can_add(ser.owner,pos2) then return simple_robots.vm_lookup(pos1,arg,0) end
     minetest.set_node(pos2,minetest.get_node(pos1))
     minetest.set_node(pos1,{name="air"})
-    
+
     nodeupdate(pos1)
     nodeupdate(pos2)
     --NOTE:Meta is still for pos1 since both these calls use positions.

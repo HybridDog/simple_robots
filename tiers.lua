@@ -14,7 +14,7 @@
 --
 --tiers.lua: Robot types and recipes.
 
-simple_robots.register_robot_type(    
+simple_robots.register_robot_type(
     --node name
     "simple_robots:robot_simple",
     --description

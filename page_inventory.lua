@@ -52,7 +52,7 @@ end
 
 local function vm_deposit(pos,slots)
     local meta=minetest.get_meta(pos)
-    
+
     local my_inv=meta:get_inventory()
     local inv=vm_getfrontinv(meta,pos)
     if not inv then return simple_robots.vm_lookup(pos,arg,0) end

@@ -94,7 +94,7 @@ local function vm_mine(pos1,dir,arg)
     if sound then
         minetest.sound_play(sound.name, {pos=pos2, gain=sound.gain})
     end
-    
+
     return simple_robots.vm_advance(pos1,dp_result.time+MINEPENALTYTIME)
 end
 

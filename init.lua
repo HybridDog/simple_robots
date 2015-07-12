@@ -433,7 +433,7 @@ function simple_robots.register_robot_type(nodeid,description,nodebox,tex_on,tex
             local meta=minetest.get_meta(pos)
             local own=meta:get_string("robot_owner")
             if (clicker:get_player_name()~=own) and own~="" then
-                return 
+                return
             end
             simple_robots.shutdownat(pos)
         end,
@@ -463,7 +463,7 @@ function simple_robots.register_robot_type(nodeid,description,nodebox,tex_on,tex
             local meta=minetest.get_meta(pos)
             local own=meta:get_string("robot_owner")
             if (sender:get_player_name()~=own) and own~="" then
-                return 
+                return
             end
             --CLAIMING OWNERSHIP OF A ROBOT WITH MISSING OWNER-TAG
             --(how can this happen,you may ask? naive worldeditors,that's how!)
