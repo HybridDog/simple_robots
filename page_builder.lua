@@ -24,29 +24,21 @@ local PLACETIME=0.5 --Time taken to place.
 
 local function vm_get_node_place_sound(name)
     local sound = minetest.registered_nodes[name]
-    if not sound then
-        return
-    end
-    sound = sound.sounds
-    if not sound then
-        return
-    end
-    sound = sound.place
-    if not sound then
-        return
-    end
-    return sound
+    return sound and sound.sounds and sound.sounds.place
 end
+
 local function vm_buildable_to(name)
     local nodedef=minetest.registered_nodes[name]
     if not nodedef then return true end
     return nodedef.buildable_to
 end
+
 local function vm_pointable(name)
     local nodedef=minetest.registered_nodes[name]
     if not nodedef then return false end
     return nodedef.pointable
 end
+
 local function vm_place(pos1,dir,arg)
     local meta=minetest.get_meta(pos1)
     local pos2=vector.add(pos1,dir)
@@ -62,7 +54,9 @@ local function vm_place(pos1,dir,arg)
     local res,tf=stackdef.on_place(stk,fp,{type="node",under=pa_under,above=pos2})
     fp:remove()
     meta:get_inventory():set_stack("main",meta:get_int("robot_slot"),res)
-    if not tf then return simple_robots.vm_lookup(pos1,arg,PLACETIME) end
+    if not tf then
+        return simple_robots.vm_lookup(pos1, arg, PLACETIME)
+    end
     local name = stackdef.name
     if name then
         local sound = vm_get_node_place_sound(name)

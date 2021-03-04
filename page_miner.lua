@@ -23,19 +23,8 @@ local PUNCHTIME=0.5 --Time taken to punch.
 
 -- gets the dug sound of a node
 local function vm_get_node_dug_sound(name)
-	local sound = minetest.registered_nodes[name]
-	if not sound then
-		return
-	end
-	sound = sound.sounds
-	if not sound then
-		return
-	end
-	sound = sound.dug
-	if not sound then
-		return
-	end
-	return sound
+	local def = minetest.registered_nodes[name]
+	return def and def.sounds and def.sounds.dug
 end
 
 --Gets the nodedef.diggable property(with a sanity check)
