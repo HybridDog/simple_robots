@@ -78,7 +78,7 @@ end
 local function vm_retrieve_add(invref,slots,stack)
 	local oldcount=stack:get_count()
 	--Basically,go through each slot,subtract what we do manage to get in from stack.
-	for k,v in ipairs(slots) do
+	for _,v in ipairs(slots) do
 		if stack:is_empty() then return true end --Return if empty.
 		local tis=invref:get_stack("main",v)
 		--add_item doesn't specify if metadata is added,even on a clear slot.
@@ -183,4 +183,7 @@ end
 
 --PAGE DEFINITION
 
-simple_robots.commandpages["inventory"]={"SELECT SLOT","DEPOSIT SELECTED ELSE GOTO","DEPOSIT ALL BUT SELECTED ELSE GOTO","TAKE INTO SELECTED ELSE GOTO","TAKE ALL AVOID SELECTED ELSE GOTO","SWAP SELECTED WITH SLOT","IF SELECTED EMPTY THEN GOTO"}
+simple_robots.commandpages["inventory"] = {"SELECT SLOT",
+	"DEPOSIT SELECTED ELSE GOTO", "DEPOSIT ALL BUT SELECTED ELSE GOTO",
+	"TAKE INTO SELECTED ELSE GOTO", "TAKE ALL AVOID SELECTED ELSE GOTO",
+	"SWAP SELECTED WITH SLOT", "IF SELECTED EMPTY THEN GOTO"}

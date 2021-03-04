@@ -62,7 +62,7 @@ local function vm_mine(pos1, dir, arg)
 		groups,
 		toolcaps
 	)
-	for k,v in ipairs(dp_pool) do
+	for _,v in ipairs(dp_pool) do
 		--get_dig_params is undocumented @ wiki,but it works.
 		--time:float,diggable:boolean
 		if v.diggable then
@@ -160,5 +160,7 @@ end
 
 --PAGE DEFINITION
 
-simple_robots.commandpages.miner = {"MINE ELSE GOTO","MINE UP ELSE GOTO","MINE DOWN ELSE GOTO","PUNCH ELSE GOTO","PUNCH UP ELSE GOTO","PUNCH DOWN ELSE GOTO"}
+simple_robots.commandpages.miner = {"MINE ELSE GOTO", "MINE UP ELSE GOTO",
+	"MINE DOWN ELSE GOTO", "PUNCH ELSE GOTO", "PUNCH UP ELSE GOTO",
+	"PUNCH DOWN ELSE GOTO"}
 

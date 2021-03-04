@@ -134,7 +134,9 @@ minetest.register_entity("simple_robots:fakeplayer",
         print("This indicates a problem in the code.")
         print("Report this issue to the maintainer of this branch,")
         print("preferably working out which command caused this, under what conditions.")
-        print("Coordinates of this bad robot are:"..(pos.x)..","..(pos.y)..","..(pos.z))
+        local pos = self.object:get_pos()
+        print("Coordinates of this bad robot are: " ..
+            minetest.pos_to_string(pos))
         self.object:remove()
     end,
 })
@@ -155,7 +157,8 @@ local function genProgrammer(pages,meta)
         else
             res=res.."_ "
         end
-        res=res..meta:get_string("program_"..l.."_op").." "..minetest.formspec_escape(meta:get_string("program_"..l.."_msg"))
+        res = res .. meta:get_string("program_" .. l .. "_op") .. " " ..
+            minetest.formspec_escape(meta:get_string("program_" .. l .. "_msg"))
     end
     res=res.."]"
     local pos=3.25
@@ -168,7 +171,10 @@ local function genProgrammer(pages,meta)
     --Doesn't happen anymore,but may as well leave a perfectly good check.
     local ln=meta:get_int("lineno")
     if (ln~=nil) and (ln~=0) then
-        res=res.."label[3.25,0;Line "..ln.."="..meta:get_string("program_"..ln.."_op").." "..minetest.formspec_escape(meta:get_string("program_"..ln.."_msg")).."]"
+        res = res .. "label[3.25,0;Line " .. ln .. "=" ..
+            meta:get_string("program_" .. ln .. "_op") .. " " ..
+            minetest.formspec_escape(meta:get_string("program_" .. ln ..
+            "_msg")) .. "]"
         for p,v in ipairs(set) do
             --This deliberately acts against the auto-spacing to conserve space
             --for more commands.
@@ -199,7 +205,8 @@ end
 --Fake player code.
 --This doesn't have to be perfect,
 --it just has to handle EXPECTED behaviors.
---Causing weird errors when a buggy item(that is, a item that crashes minetest if a real player uses it) comes along is fine,
+--Causing weird errors when a buggy item(that is, a item that crashes minetest
+--if a real player uses it) comes along is fine,
 --since that item should be tested by the author anyway(to state it another way:not my fault)
 function simple_robots.vm_fakeplayer(name,pos,fp_control,selectedslot)
     local fake_player=minetest.add_entity(pos,"simple_robots:fakeplayer")
@@ -260,10 +267,10 @@ function simple_robots.robot_to_table(pos)
 
     for k,v in pairs(simple_robots.custommetas) do
         if type(v)=="string" then
-            ser.custommetas[k]=meta:get_string(k)
+            ser.custommetas[k] = meta:get_string(k)
         end
         if type(v)=="number" then
-            set.custommetas[k]=meta:get_int(k)
+            ser.custommetas[k] = meta:get_int(k)
         end
     end
     return ser
@@ -357,7 +364,9 @@ local function vm_run(pos)
     end
     --Legacy commands
     --If this EVER happens,something is really wrong with the save file.
-    print("Corrupted robot program @ "..(pos.x)..","..(pos.y)..","..(pos.z).." (not the fault of the robot's owner,this is save file corruption) missing command:"..tostring(command))
+    print("Corrupted robot program @ " .. minetest.pos_to_string(pos) ..
+        " (not the fault of the robot's owner,this is save file corruption) " ..
+        "missing command:" .. tostring(command))
     simple_robots.shutdownat(pos)
     return nil
 end
@@ -413,7 +422,6 @@ function simple_robots.register_robot_type(nodeid,description,nodebox,tex_on,tex
         end,
         on_timer = function (pos,elapsed)
             local i=0
-            local running=false
             while (i<10) do
                 local a=vm_run(pos)
                 if a==nil then return false end --Nil means "quit VM now and do not do anything".

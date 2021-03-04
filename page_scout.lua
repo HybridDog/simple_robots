@@ -59,8 +59,8 @@ local function vm_tp(pos1, dir, arg)
 	minetest.set_node(pos2, minetest.get_node(pos1))
 	minetest.remove_node(pos1)
 
-	nodeupdate(pos1)
-	nodeupdate(pos2)
+	minetest.check_for_falling(pos1)
+	minetest.check_for_falling(pos2)
 	--NOTE:Meta is still for pos1 since both these calls use positions.
 	simple_robots.table_to_robot(pos2, ser)
 	local timerval = simple_robots.vm_advance(pos2, MOVETIME)
@@ -84,5 +84,6 @@ end
 
 --PAGE DEFINITION
 
-simple_robots.commandpages.scout = {"NOP","GOTO","FORWARD ELSE GOTO","TURN LEFT","TURN RIGHT","UPWARD ELSE GOTO","DOWNWARD ELSE GOTO"}
+simple_robots.commandpages.scout = {"NOP", "GOTO", "FORWARD ELSE GOTO",
+	"TURN LEFT", "TURN RIGHT", "UPWARD ELSE GOTO", "DOWNWARD ELSE GOTO"}
 
